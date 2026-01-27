@@ -1,0 +1,41 @@
+server:
+  port: 8081
+
+spring:
+  jackson:
+    mapper:
+      sort-properties-alphabetically: false
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  datasource:
+    url: jdbc:postgresql://courses-db-server.postgres.database.azure.com:5432/postgres?sslmode=require
+    username: admin_courses
+    password: BangNguyen2264
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+      database: postgresql
+      database-platform: org.hibernate.dialect.PostgreSQLDialect
+app:
+  security:
+    jwt:
+      access-expires-at: 9_000_000
+      refresh-expires-at: 2_592_000_000 #30day
+      prefix: "Bearer"
+      auth-header: "Authorization"
+      access-secret: access
+      refresh-secret: refresh
+  api:
+    base-url-api: http://localhost:8081
+    title: Banking app
+    version: 1.0.0
+    contact-email: ngtbang2264.dev@gmail.com
+    swagger:
+      enable: true

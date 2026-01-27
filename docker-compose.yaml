@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:13-alpine
+    container_name: Postgres_DB
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - course-network-local
+
+  backend:
+    build: .
+    container_name: course_server
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      BACKEND_PORT: ${BACKEND_PORT}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES}
+      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES}
+
+      API_BASE_URL: ${API_BASE_URL}
+      API_TITLE: ${API_TITLE}
+      API_VERSION: ${API_VERSION}
+      API_CONTACT_EMAIL: ${API_CONTACT_EMAIL}
+      SWAGGER_ENABLE: ${SWAGGER_ENABLE}
+
+    depends_on:
+      - db
+    networks:
+      - course-network-local
+
+volumes:
+  db_data:
+
+networks:
+  course-network-local:
+    driver: bridge
