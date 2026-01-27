@@ -41,9 +41,9 @@ app:
       access-expires-at: ${JWT_ACCESS_EXPIRES}
       refresh-expires-at: ${JWT_REFRESH_EXPIRES}
       prefix: ${JWT_PREFIX}
-      auth-header: ${Authorization}
-      access-secret: ${LtuNgV2sqXalqpaq6boc0b0LrODJV7DcNwESmgZKbSlqjSxZrCLSWL8OZvW7i5medMvEtklmIUBtuVFAJUvB0Q}
-      refresh-secret: ${jF4KoeAVEPy9J5Ry3iA1kE60_hVZMQ4BQS2U7SeFlQLErjsf453OwQ9PFhDwYLtlJLKI4iD50t9AKlO8FWo9fA}
+      auth-header: ${JWT_AUTH_HEADER}
+      access-secret: ${JWT_ACCESS_EXPIRES}
+      refresh-secret: ${JWT_ACCESS_EXPIRES}
 
   api:
     base-url-api: ${API_BASE_URL}
