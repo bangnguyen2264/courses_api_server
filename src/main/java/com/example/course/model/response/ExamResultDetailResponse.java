@@ -6,13 +6,14 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
 @SuperBuilder
-public class ExamResultDetailResponse extends ExamResultResponse {
+public class ExamResultDetailResponse extends ExamResultResponse implements Serializable {
 
     private List<QuizResultSubmission> quizResultSubmissionList;
 

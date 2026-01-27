@@ -4,6 +4,7 @@ import com.example.course.model.entity.Lesson;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -11,7 +12,7 @@ import java.util.stream.Collectors;
 @Data
 @ToString
 @SuperBuilder
-public class LessonDetailResponse extends LessonResponse {
+public class LessonDetailResponse extends LessonResponse implements Serializable {
 
     private List<LessonSectionResponse> sections;
 

@@ -5,12 +5,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
 @SuperBuilder
-public class ExamResultResponse {
+public class ExamResultResponse implements Serializable {
     private Long id;
     private Long examId;
     private String examTitle;

@@ -5,10 +5,11 @@ import com.example.course.model.entity.User;
 import lombok.Builder;
 import lombok.Data;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 @Data
 @Builder
-public class UserResponse {
+public class UserResponse implements Serializable {
     private Long id;
     private String fullName;
     private String email;

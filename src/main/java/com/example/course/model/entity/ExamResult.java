@@ -3,6 +3,8 @@ package com.example.course.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.io.Serializable;
+
 @EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "exam_results")
@@ -10,7 +12,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ExamResult extends BaseEntity {
+public class ExamResult extends BaseEntity implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
