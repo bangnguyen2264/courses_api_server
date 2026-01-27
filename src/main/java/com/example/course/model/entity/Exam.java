@@ -4,6 +4,7 @@ import com.example.course.constant.ExamDuration;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.io.Serializable;
 import java.util.List;
 
 @Entity
@@ -12,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Exam {
+public class Exam extends BaseEntity implements Serializable {
 
     @Id
     @GeneratedValue

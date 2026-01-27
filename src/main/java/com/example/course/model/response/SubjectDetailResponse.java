@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -13,7 +14,7 @@ import java.util.stream.Collectors;
 @Data
 @ToString
 @SuperBuilder
-public class SubjectDetailResponse extends SubjectResponse {
+public class SubjectDetailResponse extends SubjectResponse implements Serializable {
     private List<ChapterDetailResponse> chapters;
 
     public static SubjectDetailResponse toResponse(Subject subject) {

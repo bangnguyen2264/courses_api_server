@@ -20,9 +20,12 @@ public abstract class BaseEntity implements Serializable {
     @Column(name = "created_at", updatable = false)
     @JsonFormat(pattern = "HH:mm dd-MM-yyyy")
     protected LocalDateTime createdAt;
+    @Column(name = "created_by", updatable = false)
+    protected String createdBy;
 
     @UpdateTimestamp
     @Column(name = "updated_at")
     @JsonFormat(pattern = "HH:mm dd-MM-yyyy")
     protected LocalDateTime updatedAt;
+    protected String updatedBy;
 }

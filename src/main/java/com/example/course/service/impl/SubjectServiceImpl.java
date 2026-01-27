@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -120,11 +121,6 @@ public class SubjectServiceImpl implements SubjectService {
     )    public SubjectResponse update(Long id, SubjectRequest request) {
 
         Subject subject = findById(id);
-
-        if (request.getName() != null &&
-               ! subject.getName().equals(request.getName())) {
-            throw new BadRequestException("Subject name already exists");
-        }
 
         subjectMapper.updateEntityFromRequest(request, subject);
 
