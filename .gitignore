@@ -35,5 +35,4 @@ build/
 .env
 *.sql
 *.json
-src/main/resources/application-staging.yaml
 src/main/resources/application-prod.yaml
