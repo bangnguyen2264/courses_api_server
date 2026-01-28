@@ -2,39 +2,52 @@ server:
   port: 8081
 
 spring:
-  jackson:
-    mapper:
-      sort-properties-alphabetically: false
   servlet:
     multipart:
-      max-file-size: 500MB
-      max-request-size: 500MB
+      max-file-size: 50MB
+      max-request-size: 50MB
+  cache:
+    type: redis
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: 6380
+      password: ${PRIMARY_KEY}
+      ssl:
+        enabled: true
+      timeout: 30s
+      lettuce:
+        client-options:
+          protocol-version: RESP2
   datasource:
-    url: jdbc:postgresql://courses-db-server.postgres.database.azure.com:5432/postgres?sslmode=require
-    username: admin_courses
-    password: BangNguyen2264
+    url: ${POSTGRES_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
         format_sql: true
       database: postgresql
       database-platform: org.hibernate.dialect.PostgreSQLDialect
+
 app:
   security:
     jwt:
-      access-expires-at: 9_000_000
-      refresh-expires-at: 2_592_000_000 #30day
-      prefix: "Bearer"
-      auth-header: "Authorization"
-      access-secret: access
-      refresh-secret: refresh
+      access-expires-at: 36000000
+      refresh-expires-at: 60480000000
+      prefix: Bearer
+      auth-header: Authorization
+      access-secret: access-secret
+      refresh-secret: refresh-secret
+
   api:
     base-url-api: http://localhost:8081
-    title: Banking app
+    title: COURSE APP
     version: 1.0.0
     contact-email: ngtbang2264.dev@gmail.com
     swagger:
