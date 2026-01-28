@@ -4,6 +4,7 @@ import com.example.course.model.entity.Lesson;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -11,7 +12,7 @@ import java.util.stream.Collectors;
 @Data
 @ToString
 @SuperBuilder
-public class LessonDetailResponse extends LessonResponse {
+public class LessonDetailResponse extends LessonResponse implements Serializable {
 
     private List<LessonSectionResponse> sections;
 
@@ -23,6 +24,10 @@ public class LessonDetailResponse extends LessonResponse {
                 .chapterId(lesson.getChapter().getId())
                 .sections(lesson.getSections().stream().map(LessonSectionResponse::toResponse).collect(Collectors.toList()))
                 .position(lesson.getPosition())
+                .createdAt(lesson.getCreatedAt())
+                .updatedAt(lesson.getUpdatedAt())
+                .createdBy(lesson.getCreatedBy())
+                .updatedBy(lesson.getUpdatedBy())
                 .build();
     }
 }

@@ -7,13 +7,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
 @SuperBuilder
 @AllArgsConstructor
 @NoArgsConstructor
-public class ChapterResponse {
+public class ChapterResponse implements Serializable {
 
     private Long id;
 
@@ -25,6 +27,14 @@ public class ChapterResponse {
 
     private Integer position;
 
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    private String createdBy;
+
+    private String updatedBy;
+
     public static ChapterResponse toResponse(Chapter chapter) {
         return ChapterResponse.builder()
                 .id(chapter.getId())
@@ -32,6 +42,10 @@ public class ChapterResponse {
                 .description(chapter.getDescription())
                 .position(chapter.getPosition())
                 .subjectId(chapter.getSubject().getId())
+                .createdAt(chapter.getCreatedAt())
+                .updatedAt(chapter.getUpdatedAt())
+                .createdBy(chapter.getCreatedBy())
+                .updatedBy(chapter.getUpdatedBy())
                 .build();
     }
 

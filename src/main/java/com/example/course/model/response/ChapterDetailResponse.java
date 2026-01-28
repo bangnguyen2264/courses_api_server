@@ -6,6 +6,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,7 +15,7 @@ import java.util.stream.Collectors;
 @ToString
 @SuperBuilder
 
-public class ChapterDetailResponse extends ChapterResponse {
+public class ChapterDetailResponse extends ChapterResponse implements Serializable {
 
     private List<LessonResponse> lessons;
 
@@ -27,6 +28,10 @@ public class ChapterDetailResponse extends ChapterResponse {
                 .description(chapter.getDescription())
                 .position(chapter.getPosition())
                 .lessons(chapter.getLessons().stream().map(LessonResponse::toResponse).collect(Collectors.toList()))
+                .createdAt(chapter.getCreatedAt())
+                .updatedAt(chapter.getUpdatedAt())
+                .createdBy(chapter.getCreatedBy())
+                .updatedBy(chapter.getUpdatedBy())
                 .build();
     }
 }

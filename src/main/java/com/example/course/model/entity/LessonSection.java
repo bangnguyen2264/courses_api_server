@@ -4,6 +4,8 @@
     import jakarta.persistence.*;
     import lombok.*;
 
+    import java.io.Serializable;
+
     @Entity
     @Table(name = "lesson_section")
     @Getter
@@ -11,7 +13,7 @@
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public class LessonSection extends BaseEntity {
+    public class LessonSection extends BaseEntity implements Serializable {
 
         @Id
         @GeneratedValue(strategy = GenerationType.IDENTITY)

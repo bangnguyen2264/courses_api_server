@@ -13,11 +13,11 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
-@Data
+@Getter @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class User implements UserDetails {
+public class User extends BaseEntity implements UserDetails {
 
     @Id
     @GeneratedValue

@@ -6,13 +6,14 @@ import lombok.*;
 
 import java.util.List;
 
+@EqualsAndHashCode(callSuper = true)
 @Entity
 @Table(name = "quizzes")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Quiz {
+public class Quiz extends BaseEntity {
 
     @Id
     @GeneratedValue

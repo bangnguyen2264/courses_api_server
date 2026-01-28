@@ -16,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Random;
 
 @Component
 @RequiredArgsConstructor
@@ -41,7 +40,10 @@ public class DataSeeder implements CommandLineRunner {
             log.info("Bắt đầu khởi tạo dữ liệu mẫu...");
             seedSubjectsAndHierarchy();
             log.info("Hoàn tất khởi tạo dữ liệu mẫu!");
+        } else {
+            log.info("Không tạo dữ liệu mẫu");
         }
+
     }
 
     private void seedSubjectsAndHierarchy() throws JsonProcessingException {
@@ -80,6 +82,7 @@ public class DataSeeder implements CommandLineRunner {
                     .position(i)
                     .build();
             chapter.setCreatedBy("admin@gmail.com");
+            chapter.setUpdatedBy("admin@gmail.com");
 
             Chapter savedChapter = chapterRepository.save(chapter);
 
@@ -99,6 +102,7 @@ public class DataSeeder implements CommandLineRunner {
                     .position(i)
                     .build();
             lesson.setCreatedBy("admin@gmail.com");
+            lesson.setUpdatedBy("admin@gmail.com");
 
             Lesson savedLesson = lessonRepository.save(lesson);
 
@@ -120,6 +124,7 @@ public class DataSeeder implements CommandLineRunner {
                 .position(1)
                 .build();
         textSection.setCreatedBy("admin@gmail.com");
+        textSection.setUpdatedBy("admin@gmail.com");
         lessonSectionRepository.save(textSection);
 
         // Section 2: Video (Giả lập)
@@ -132,6 +137,7 @@ public class DataSeeder implements CommandLineRunner {
                 .position(2)
                 .build();
         videoSection.setCreatedBy("admin@gmail.com");
+        videoSection.setUpdatedBy("admin@gmail.com");
         lessonSectionRepository.save(videoSection);
     }
 
@@ -187,6 +193,8 @@ public class DataSeeder implements CommandLineRunner {
                 .duration(duration) // Đảm bảo Enum khớp với file ExamDuration của bạn
                 .quizzes(quizzes)
                 .build();
+        exam.setCreatedBy("admin@gmail.com");
+        exam.setUpdatedBy("admin@gmail.com");
         examRepository.save(exam);
     }
 }

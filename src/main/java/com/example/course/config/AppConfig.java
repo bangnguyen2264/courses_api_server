@@ -35,8 +35,11 @@ public class AppConfig {
     @Bean
     public CommandLineRunner initApp() {
         return args -> {
+            String adminEmail = "admin@gmail.com";
+
             if (!roleRepository.existsByName("ROLE_USER")) {
-                roleRepository.save(Role.builder().name("ROLE_USER").build());
+                roleRepository.save(Role.builder().name("ROLE_USER")
+                        .build());
             }
             if (!roleRepository.existsByName("ROLE_ADMIN")) {
                 roleRepository.save(Role.builder().name("ROLE_ADMIN").build());
@@ -45,7 +48,6 @@ public class AppConfig {
 
             Role adminRole = roleRepository.findById(2L).orElseThrow();
 
-            String adminEmail = "admin@gmail.com";
 
             if (!userRepository.existsByEmail(adminEmail)) {
                 userRepository.save(

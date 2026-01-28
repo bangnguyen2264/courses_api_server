@@ -7,13 +7,15 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
 
+import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
 @SuperBuilder
 @AllArgsConstructor
 @NoArgsConstructor
-public class LessonResponse {
+public class LessonResponse implements Serializable {
 
     private Long id;
 
@@ -25,6 +27,14 @@ public class LessonResponse {
 
     private Integer position;
 
+    private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
+
+    private String createdBy;
+
+    private String updatedBy;
+
     public static LessonResponse toResponse(Lesson lesson) {
         return LessonResponse.builder()
                 .id(lesson.getId())
@@ -32,6 +42,10 @@ public class LessonResponse {
                 .title(lesson.getTitle())
                 .description(lesson.getDescription())
                 .position(lesson.getPosition())
+                .createdAt(lesson.getCreatedAt())
+                .updatedAt(lesson.getUpdatedAt())
+                .createdBy(lesson.getCreatedBy())
+                .updatedBy(lesson.getUpdatedBy())
                 .build();
     }
 }
