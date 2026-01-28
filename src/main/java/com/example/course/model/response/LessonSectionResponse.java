@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class LessonSectionResponse implements Serializable {
+public class LessonSectionResponse {
 
     private Long id;
 
