@@ -34,7 +34,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Cacheable(
             value = "user-list",
-            key = "T(java.util.Objects).hash(#filter)"
+            key = "'{user-data}:list:' + #filter.toString()",
+            unless = "#result == null"
     )
     public ApiResponse<UserResponse> getAll(UserFilter filter) {
         Pageable pageable = PageableUtil.createPageable(filter);
@@ -44,7 +45,10 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    @Cacheable(value = "user", key = "#id")
+    @Cacheable(
+            value = "user",
+            key = "'{user-data}:id:' + #id"
+    )
     public UserResponse getById(Long id) {
         User user = findById(id);
         return userMapper.toResponse(user);
@@ -54,7 +58,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Caching(
             evict = {
-                    @CacheEvict(value = "user", key = "#id"),
+                    @CacheEvict(value = "user", key = "'{user-data}:id:' + #id"),
                     @CacheEvict(value = "user-list", allEntries = true)
             }
     )
@@ -80,7 +84,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Caching(
             evict = {
-                    @CacheEvict(value = "user", key = "#id"),
+                    @CacheEvict(value = "user", key = "'{user-data}:id:' + #id"),
                     @CacheEvict(value = "user-list", allEntries = true)
             }
     )
@@ -93,7 +97,7 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @Caching(
             evict = {
-                    @CacheEvict(value = "user", key = "#id"),
+                    @CacheEvict(value = "user", key = "'{user-data}:id:' + #id"),
                     @CacheEvict(value = "user-list", allEntries = true)
             }
     )

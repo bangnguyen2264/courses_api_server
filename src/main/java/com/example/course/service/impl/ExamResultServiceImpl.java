@@ -2,19 +2,10 @@ package com.example.course.service.impl;
 
 import com.example.course.exception.NotFoundException;
 import com.example.course.filter.ExamResultFilter;
-import com.example.course.model.entity.Exam;
-import com.example.course.model.entity.ExamResult;
-import com.example.course.model.entity.Quiz;
-import com.example.course.model.entity.User;
+import com.example.course.model.entity.*;
 import com.example.course.model.request.ExamSubmitRequest;
-import com.example.course.model.response.ApiResponse;
-import com.example.course.model.response.ExamResultDetailResponse;
-import com.example.course.model.response.ExamResultResponse;
-import com.example.course.model.response.QuizResultSubmission;
-import com.example.course.repository.ExamRepository;
-import com.example.course.repository.ExamResultRepository;
-import com.example.course.repository.QuizRepository; // Import mới
-import com.example.course.repository.UserRepository;
+import com.example.course.model.response.*;
+import com.example.course.repository.*;
 import com.example.course.service.ExamResultService;
 import com.example.course.specification.ExamResultSpecification;
 import com.example.course.utils.PageableUtil;
@@ -31,9 +22,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@CacheConfig(cacheNames = "exam-result")
 public class ExamResultServiceImpl implements ExamResultService {
 
     private final ExamRepository examRepository;
@@ -44,7 +37,7 @@ public class ExamResultServiceImpl implements ExamResultService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "exam-result-list", allEntries = true)
+    @CacheEvict(key = "'{exam-result-data}:list:'", allEntries = true)
     public ExamResultDetailResponse submit(ExamSubmitRequest request) {
         User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new NotFoundException("User not found id: " + request.getUserId()));
@@ -53,8 +46,11 @@ public class ExamResultServiceImpl implements ExamResultService {
                 .orElseThrow(() -> new NotFoundException("Exam not found id: " + request.getExamId()));
 
         List<Quiz> quizzes = quizRepository.findByExams_Id(request.getExamId());
-        Map<Long, List<Integer>> safeAnswers = request.getAnswers() != null ? request.getAnswers() : new HashMap<>();
-        GradingResult grading = calculateGrading(quizzes, safeAnswers);
+
+        Map<Long, List<Integer>> answers =
+                request.getAnswers() != null ? request.getAnswers() : new HashMap<>();
+
+        GradingResult grading = calculateGrading(quizzes, answers);
 
         ExamResult result = ExamResult.builder()
                 .user(user)
@@ -63,47 +59,47 @@ public class ExamResultServiceImpl implements ExamResultService {
                 .correct(grading.correctCount)
                 .incorrect(grading.incorrectCount)
                 .timeTaken(request.getTimeTaken())
-                .submissionHistory(toJson(safeAnswers))
+                .submissionHistory(toJson(answers))
                 .build();
+
         examResultRepository.save(result);
 
-        List<QuizResultSubmission> details = buildSubmissionDetails(quizzes, safeAnswers);
+        List<QuizResultSubmission> details = buildSubmissionDetails(quizzes, answers);
 
         return ExamResultDetailResponse.toResponse(result, details);
     }
 
     @Override
-    @Cacheable(value = "exam-result", key = "#id")
+    @Cacheable(key = "'{exam-result-data}:id:' + #id")
     public ExamResultDetailResponse getById(Long id) {
         ExamResult result = examResultRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Result not found"));
 
-        Map<Long, List<Integer>> userAnswersMap = parseHistoryJson(result.getSubmissionHistory());
+        Map<Long, List<Integer>> userAnswers = parseHistoryJson(result.getSubmissionHistory());
         List<Quiz> quizzes = quizRepository.findByExams_Id(result.getExam().getId());
-        List<QuizResultSubmission> details = buildSubmissionDetails(quizzes, userAnswersMap);
 
-        return ExamResultDetailResponse.toResponse(result, details);
+        return ExamResultDetailResponse.toResponse(
+                result,
+                buildSubmissionDetails(quizzes, userAnswers)
+        );
     }
 
     @Override
-    @Cacheable(
-            value = "exam-result-list",
-            key = "T(java.util.Objects).hash(#filter)"
-    )
+    @Cacheable(key = "'{exam-result-data}:list:' + T(java.util.Objects).hash(#filter)")
     public ApiResponse<ExamResultResponse> getAll(ExamResultFilter filter) {
         Pageable pageable = PageableUtil.createPageable(filter);
-        Page<ExamResult> page = examResultRepository.findAll(ExamResultSpecification.filter(filter), pageable);
+
+        Page<ExamResult> page =
+                examResultRepository.findAll(ExamResultSpecification.filter(filter), pageable);
 
         return ApiResponse.fromPage(page.map(ExamResultResponse::toResponse));
     }
 
     @Override
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "exam-result", key = "#id"),
-                    @CacheEvict(value = "exam-result-list", allEntries = true)
-            }
-    )
+    @Caching(evict = {
+            @CacheEvict(key = "'{exam-result-data}:id:' + #id"),
+            @CacheEvict(key = "'{exam-result-data}:list:'", allEntries = true)
+    })
     public void delete(Long id) {
         if (!examResultRepository.existsById(id)) {
             throw new NotFoundException("Result not found id: " + id);
@@ -112,50 +108,47 @@ public class ExamResultServiceImpl implements ExamResultService {
     }
 
     private GradingResult calculateGrading(List<Quiz> quizzes, Map<Long, List<Integer>> userAnswers) {
-        int totalQuestions = quizzes.size();
-        if (totalQuestions == 0) return new GradingResult(0.0, 0, 0);
+        int total = quizzes.size();
+        if (total == 0) return new GradingResult(0.0, 0, 0);
 
-        int correctCount = 0;
+        int correct = 0;
+
         for (Quiz quiz : quizzes) {
             List<Integer> userAns = userAnswers.getOrDefault(quiz.getId(), Collections.emptyList());
             List<Integer> systemAns = parseJsonToList(quiz.getCorrectAnswers(), Integer.class);
 
-            if (isAnswerCorrect(userAns, systemAns)) {
-                correctCount++;
+            if (new HashSet<>(userAns).equals(new HashSet<>(systemAns))) {
+                correct++;
             }
         }
 
-        int incorrectCount = totalQuestions - correctCount;
-        double score = Math.round(((double) correctCount / totalQuestions) * 100.0 * 100.0) / 100.0;
+        int incorrect = total - correct;
+        double score = Math.round(((double) correct / total) * 10000.0) / 100.0;
 
-        return new GradingResult(score, correctCount, incorrectCount);
+        return new GradingResult(score, correct, incorrect);
     }
 
-    private List<QuizResultSubmission> buildSubmissionDetails(List<Quiz> quizzes, Map<Long, List<Integer>> userAnswersMap) {
-        return quizzes.stream().map(quiz -> {
-            QuizResultSubmission submission = new QuizResultSubmission();
-            submission.setId(quiz.getId());
-            submission.setQuestion(quiz.getQuestion());
-            submission.setMultipleChoice(quiz.isMultipleChoice());
-            submission.setCorrectAnswers(quiz.getCorrectAnswers());
-            submission.setOptions(parseJsonToList(quiz.getOptions(), String.class));
-            List<Integer> userAnsList = userAnswersMap.getOrDefault(quiz.getId(), Collections.emptyList());
-            submission.setAnswer(toJson(userAnsList));
-            return submission;
+    private List<QuizResultSubmission> buildSubmissionDetails(List<Quiz> quizzes, Map<Long, List<Integer>> answers) {
+        return quizzes.stream().map(q -> {
+            QuizResultSubmission s = new QuizResultSubmission();
+            s.setId(q.getId());
+            s.setQuestion(q.getQuestion());
+            s.setMultipleChoice(q.isMultipleChoice());
+            s.setCorrectAnswers(q.getCorrectAnswers());
+            s.setOptions(parseJsonToList(q.getOptions(), String.class));
+            s.setAnswer(toJson(answers.getOrDefault(q.getId(), Collections.emptyList())));
+            return s;
         }).collect(Collectors.toList());
-    }
-
-    private boolean isAnswerCorrect(List<Integer> userAns, List<Integer> systemAns) {
-        if (userAns == null || systemAns == null) return false;
-        return new HashSet<>(userAns).equals(new HashSet<>(systemAns));
     }
 
     private <T> List<T> parseJsonToList(String json, Class<T> clazz) {
         if (json == null || json.isBlank()) return Collections.emptyList();
         try {
-            return objectMapper.readValue(json, objectMapper.getTypeFactory().constructCollectionType(List.class, clazz));
+            return objectMapper.readValue(
+                    json,
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, clazz)
+            );
         } catch (Exception e) {
-            log.warn("Error parsing JSON to List<{}>: {}", clazz.getSimpleName(), json);
             return Collections.emptyList();
         }
     }
@@ -163,18 +156,16 @@ public class ExamResultServiceImpl implements ExamResultService {
     private Map<Long, List<Integer>> parseHistoryJson(String json) {
         if (json == null || json.isBlank()) return new HashMap<>();
         try {
-            return objectMapper.readValue(json, new TypeReference<Map<Long, List<Integer>>>() {});
+            return objectMapper.readValue(json, new TypeReference<>() {});
         } catch (Exception e) {
-            log.error("Error parsing history json", e);
             return new HashMap<>();
         }
     }
 
-    private String toJson(Object object) {
+    private String toJson(Object obj) {
         try {
-            return objectMapper.writeValueAsString(object);
+            return objectMapper.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
-            log.error("JSON write error", e);
             return "[]";
         }
     }

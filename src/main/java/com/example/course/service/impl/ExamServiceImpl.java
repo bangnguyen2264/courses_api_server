@@ -25,10 +25,12 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@CacheConfig(cacheNames = "exam")
 public class ExamServiceImpl implements ExamService {
 
     private final ExamRepository examRepository;
@@ -38,28 +40,24 @@ public class ExamServiceImpl implements ExamService {
 
     @Override
     @Transactional
-    @CacheEvict(value = "exam-list", allEntries = true)
+    @CacheEvict(key = "'{exam-data}:list:'", allEntries = true)
     public ExamResponse create(ExamRequest request) {
         Exam exam = examMapper.toEntity(request);
 
         Subject subject = subjectRepository.findById(request.getSubjectId())
-                .orElseThrow(() ->
-                        new NotFoundException("Subject not found with id: " + request.getSubjectId())
-                );
+                .orElseThrow(() -> new NotFoundException("Subject not found with id: " + request.getSubjectId()));
 
         exam.setSubject(subject);
 
-        List<Quiz> quizList = new ArrayList<>();
-
+        List<Quiz> quizzes = new ArrayList<>();
         for (Long quizId : request.getQuizIds()) {
-            Quiz quiz = quizRepository.findById(quizId)
-                    .orElseThrow(() ->
-                            new NotFoundException("Quiz not found with id: " + quizId)
-                    );
-            quizList.add(quiz);
+            quizzes.add(
+                    quizRepository.findById(quizId)
+                            .orElseThrow(() -> new NotFoundException("Quiz not found with id: " + quizId))
+            );
         }
 
-        exam.setQuizzes(quizList);
+        exam.setQuizzes(quizzes);
 
         Exam saved = examRepository.save(exam);
 
@@ -67,36 +65,28 @@ public class ExamServiceImpl implements ExamService {
     }
 
     @Override
-    @Cacheable(value = "exam", key = "#id")
+    @Cacheable(key = "'{exam-data}:id:' + #id")
     public ExamResponse getById(Long id) {
         return examMapper.toResponse(findById(id));
     }
 
     @Override
-    @Cacheable(
-            value = "exam-list",
-            key = "T(java.util.Objects).hash(#examFilter)"
-    )
+    @Cacheable(key = "'{exam-data}:list:' + T(java.util.Objects).hash(#examFilter)")
     public ApiResponse<ExamResponse> getAll(ExamFilter examFilter) {
         Pageable pageable = PageableUtil.createPageable(examFilter);
 
         Page<Exam> exams =
                 examRepository.findAll(ExamSpecification.filter(examFilter), pageable);
 
-        Page<ExamResponse> results =
-                exams.map(examMapper::toResponse);
-
-        return ApiResponse.fromPage(results);
+        return ApiResponse.fromPage(exams.map(examMapper::toResponse));
     }
 
     @Override
     @Transactional
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "exam", key = "#id"),
-                    @CacheEvict(value = "exam-list", allEntries = true)
-            }
-    )
+    @Caching(evict = {
+            @CacheEvict(key = "'{exam-data}:id:' + #id"),
+            @CacheEvict(key = "'{exam-data}:list:'", allEntries = true)
+    })
     public ExamResponse update(Long id, ExamRequest request) {
         Exam exam = findById(id);
         examMapper.updateEntityFromRequest(request, exam);
@@ -106,21 +96,16 @@ public class ExamServiceImpl implements ExamService {
 
     @Override
     @Transactional
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "exam", key = "#id"),
-                    @CacheEvict(value = "exam-list", allEntries = true)
-            }
-    )
+    @Caching(evict = {
+            @CacheEvict(key = "'{exam-data}:id:' + #id"),
+            @CacheEvict(key = "'{exam-data}:list:'", allEntries = true)
+    })
     public void delete(Long id) {
-        Exam exam = findById(id);
-        examRepository.delete(exam);
+        examRepository.delete(findById(id));
     }
 
     private Exam findById(Long id) {
         return examRepository.findById(id)
-                .orElseThrow(() ->
-                        new NotFoundException("Exam not found with id: " + id)
-                );
+                .orElseThrow(() -> new NotFoundException("Exam not found with id: " + id));
     }
 }

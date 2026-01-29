@@ -1,40 +1,94 @@
 server:
   port: 8081
 
+
 spring:
+
+  # ======================================================
+  # FILE UPLOAD
+  # ======================================================
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 50MB
-  cache:
-    type: redis
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: 6380
-      password: ${PRIMARY_KEY}
-      ssl:
-        enabled: true
-      timeout: 30s
-      lettuce:
-        client-options:
-          protocol-version: RESP2
+
+
+  # ======================================================
+  # DATASOURCE (PostgreSQL + HikariCP)  ⭐ QUAN TRỌNG NHẤT
+  # ======================================================
   datasource:
+    type: com.zaxxer.hikari.HikariDataSource
     url: ${POSTGRES_URL}
     username: ${POSTGRES_USER}
     password: ${POSTGRES_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
+    hikari:
+      pool-name: CourseHikariPool
+
+      # ⚡ tăng tốc seed / batch insert
+      maximum-pool-size: 30
+      minimum-idle: 10
+
+      auto-commit: false
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      leak-detection-threshold: 0
+
+
+  # ======================================================
+  # JPA / HIBERNATE (BATCH INSERT OPTIMIZED)
+  # ======================================================
   jpa:
+    open-in-view: false          # ✅ đúng best practice
+    show-sql: false             # ❌ tắt để seed nhanh hơn
     hibernate:
       ddl-auto: update
-    show-sql: true
+
     properties:
       hibernate:
-        format_sql: true
-      database: postgresql
-      database-platform: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
+        # 🔥 CỰC KỲ QUAN TRỌNG CHO SEED NHANH
+        jdbc:
+          batch_size: 1000
+          batch_versioned_data: true
+
+        order_inserts: true
+        order_updates: true
+
+        format_sql: false
+        generate_statistics: false
+
+
+  # ======================================================
+  # REDIS CACHE
+  # ======================================================
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${PRIMARY_KEY}
+      timeout: 30s
+
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+        client-options:
+          protocol-version: RESP2
+
+
+# ======================================================
+# APP CONFIG
+# ======================================================
 app:
   security:
     jwt:
@@ -52,3 +106,19 @@ app:
     contact-email: ngtbang2264.dev@gmail.com
     swagger:
       enable: true
+
+
+# ======================================================
+# LOGGING (GIẢM LOG ĐỂ TĂNG TỐC)
+# ======================================================
+logging:
+  level:
+    root: INFO
+    com.example.course: DEBUG
+
+    # ❌ tắt SQL spam
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+
+    org.springframework.data.redis: WARN
+    org.springframework.security: INFO

@@ -1,4 +1,5 @@
 server:
+
   port: 8081
 
 spring:
@@ -12,13 +13,24 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
+#      cluster:
+#        nodes:
+#          - ${REDIS_HOST}:${REDIS_PORT}  # e.g., xxx.redis.cache.windows.net:6380
+#        max-redirects: 3
       password: ${PRIMARY_KEY}
-      ssl:
-        enabled: true
+#      ssl:
+#        enabled: true
       timeout: 30s
       lettuce:
-        client-options:
-          protocol-version: RESP2
+        pool:
+          max-active: 30
+          max-idle: 15
+          min-idle: 5
+          max-wait: 5000ms
+        cluster:
+          refresh:
+            adaptive: true
+            period: 30s  # Faster refresh for Enterprise
   datasource:
     url: ${POSTGRES_URL}
     username: ${POSTGRES_USER}
