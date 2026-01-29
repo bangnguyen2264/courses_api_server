@@ -13,7 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Exam extends BaseEntity implements Serializable {
+public class Exam extends BaseEntity{
 
     @Id
     @GeneratedValue

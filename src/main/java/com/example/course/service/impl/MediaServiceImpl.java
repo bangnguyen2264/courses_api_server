@@ -9,18 +9,22 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-
 @Service
 @RequiredArgsConstructor
 public class MediaServiceImpl {
 
     private final MediaFileRepository mediaFileRepository;
+
+    /* ==============================
+       Upload
+     ============================== */
 
     @Transactional
     public String uploadImage(MultipartFile file, DataType dataType, boolean isPublic) throws IOException {
@@ -43,14 +47,12 @@ public class MediaServiceImpl {
             contentType = file.getContentType();
             originalName = file.getOriginalFilename();
 
-            if (dataType == DataType.IMAGE) {
-                fileData = MediaUtils.compressImage(file.getBytes());
-            } else {
-                fileData = file.getBytes();
-            }
+            fileData = (dataType == DataType.IMAGE)
+                    ? MediaUtils.compressImage(file.getBytes())
+                    : file.getBytes();
         }
 
-        MediaFile savedFile = mediaFileRepository.save(
+        MediaFile saved = mediaFileRepository.save(
                 MediaFile.builder()
                         .name(originalName)
                         .type(contentType)
@@ -59,44 +61,85 @@ public class MediaServiceImpl {
                         .build()
         );
 
-        String endpoint = isPublic ? "/api/media/public/" : "/api/media/private/";
-        return endpoint + savedFile.getId();
+        return (isPublic ? "/api/media/public/" : "/api/media/private/") + saved.getId();
     }
 
-    @Cacheable(value = "media", key = "#id")
-    public ResponseEntity<byte[]> getPublicImage(String id) throws IOException {
+    /* ==============================
+       Public
+     ============================== */
+
+    @Cacheable(
+            value = "media",
+            key = "'{media-data}:public:' + #id",
+            unless = "#result == null"
+    )
+    public byte[] getPublicBytes(String id) {
+
         MediaFile mediaFile = mediaFileRepository.findById(id)
                 .filter(MediaFile::isPublic)
                 .orElseThrow(() -> new BadRequestException("File not found or private"));
-        return buildResponse(mediaFile);
+
+        return decompressIfNeeded(mediaFile);
     }
 
-    @Cacheable(value = "media", key = "#id")
-    public ResponseEntity<byte[]> getPrivateImage(String id) throws IOException {
+    public ResponseEntity<byte[]> getPublicImage(String id) {
+        return buildResponse(id, getPublicBytes(id));
+    }
+
+    /* ==============================
+       Private
+     ============================== */
+
+    @Cacheable(
+            value = "media",
+            key = "'{media-data}:private:' + #id",
+            unless = "#result == null"
+    )
+    public byte[] getPrivateBytes(String id) {
+
         MediaFile mediaFile = mediaFileRepository.findById(id)
                 .orElseThrow(() -> new BadRequestException("File not found"));
-        return buildResponse(mediaFile);
+
+        return decompressIfNeeded(mediaFile);
     }
 
-    @CacheEvict(value = "media", key = "#id")
+    public ResponseEntity<byte[]> getPrivateImage(String id) {
+        return buildResponse(id, getPrivateBytes(id));
+    }
+
+    /* ==============================
+       Delete
+     ============================== */
+
+    @Caching(evict = {
+            @CacheEvict(value = "media", key = "'{media-data}:public:' + #id"),
+            @CacheEvict(value = "media", key = "'{media-data}:private:' + #id")
+    })
     @Transactional
     public void delete(String id) {
         mediaFileRepository.deleteById(id);
     }
 
-    private ResponseEntity<byte[]> buildResponse(MediaFile mediaFile) throws IOException {
-        byte[] fileData;
+    /* ==============================
+       Utils
+     ============================== */
 
+    private byte[] decompressIfNeeded(MediaFile mediaFile) {
         if (mediaFile.getType() != null && mediaFile.getType().startsWith("image/")) {
-            fileData = MediaUtils.decompressImage(mediaFile.getData());
-        } else {
-            fileData = mediaFile.getData();
+            return MediaUtils.decompressImage(mediaFile.getData());
         }
+        return mediaFile.getData();
+    }
+
+    private ResponseEntity<byte[]> buildResponse(String id, byte[] data) {
+
+        MediaFile meta = mediaFileRepository.findById(id)
+                .orElseThrow(() -> new BadRequestException("File not found"));
 
         return ResponseEntity.ok()
-                .contentType(MediaType.valueOf(mediaFile.getType()))
-                .header("Content-Disposition", "inline; filename=\"" + mediaFile.getName() + "\"")
-                .body(fileData);
+                .contentType(MediaType.valueOf(meta.getType()))
+                .header("Content-Disposition", "inline; filename=\"" + meta.getName() + "\"")
+                .body(data);
     }
 
     private boolean isValidFile(MultipartFile file, DataType mediaType) {

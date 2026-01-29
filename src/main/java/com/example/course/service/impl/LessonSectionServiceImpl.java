@@ -40,34 +40,31 @@ public class LessonSectionServiceImpl implements LessonSectionService {
     @Override
     @Transactional
     @CacheEvict(value = "lesson-section-list", allEntries = true)
-    public LessonSectionResponse create(LessonSectionRequest lessonSectionRequest) {
+    public LessonSectionResponse create(LessonSectionRequest request) {
         try {
-            LessonSection lessonSection = lessonSectionMapper.toEntity(lessonSectionRequest);
-
-            Lesson lesson = lessonRepository.findById(lessonSectionRequest.getLessonId())
+            Lesson lesson = lessonRepository.findById(request.getLessonId())
                     .orElseThrow(() ->
-                            new NotFoundException("Lesson not found with id: " + lessonSectionRequest.getLessonId())
+                            new NotFoundException("Lesson not found with id: " + request.getLessonId())
                     );
 
-            if (lessonSectionRequest.getDataType() != DataType.OTHER
-                    && lessonSectionRequest.getFile() != null
-                    && !lessonSectionRequest.getFile().isEmpty()) {
+            LessonSection section = lessonSectionMapper.toEntity(request);
 
-                String dataPath = mediaService.uploadImage(
-                        lessonSectionRequest.getFile(),
-                        lessonSectionRequest.getDataType(),
+            if (request.getFile() != null && !request.getFile().isEmpty()) {
+                String path = mediaService.uploadImage(
+                        request.getFile(),
+                        request.getDataType(),
                         false
                 );
-                lessonSection.setDataPath(dataPath);
+                section.setDataPath(path);
             }
 
-            lessonSection.setLesson(lesson);
-            lesson.getSections().add(lessonSection);
+            section.setLesson(lesson);
+            lesson.getSections().add(section);
 
-            LessonSection saved = lessonSectionRepository.save(lessonSection);
+            LessonSection saved = lessonSectionRepository.save(section);
             lessonRepository.save(lesson);
 
-            return LessonSectionResponse.toResponse(saved);
+            return lessonSectionMapper.toResponse(saved);
 
         } catch (IOException e) {
             throw new RuntimeException("Failed to upload file", e);
@@ -77,29 +74,28 @@ public class LessonSectionServiceImpl implements LessonSectionService {
     @Override
     @Transactional
     @CacheEvict(value = "lesson-section-list", allEntries = true)
-    public List<LessonSectionResponse> addAll(List<LessonSectionRequest> sectionRequests) {
-        if (sectionRequests == null || sectionRequests.isEmpty()) {
+    public List<LessonSectionResponse> addAll(List<LessonSectionRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
             return List.of();
         }
 
-        Set<Long> lessonIds = sectionRequests.stream()
+        Set<Long> lessonIds = requests.stream()
                 .map(LessonSectionRequest::getLessonId)
                 .collect(Collectors.toSet());
 
-        List<Lesson> lessons = lessonRepository.findAllById(lessonIds);
-
-        Map<Long, Lesson> lessonMap = lessons.stream()
+        Map<Long, Lesson> lessonMap = lessonRepository.findAllById(lessonIds)
+                .stream()
                 .collect(Collectors.toMap(Lesson::getId, Function.identity()));
 
-        List<Long> missingLessons = lessonIds.stream()
+        List<Long> missing = lessonIds.stream()
                 .filter(id -> !lessonMap.containsKey(id))
                 .toList();
 
-        if (!missingLessons.isEmpty()) {
-            throw new NotFoundException("Lessons not found with ids: " + missingLessons);
+        if (!missing.isEmpty()) {
+            throw new NotFoundException("Lessons not found with ids: " + missing);
         }
 
-        List<LessonSection> sections = sectionRequests.stream()
+        List<LessonSection> sections = requests.stream()
                 .map(req -> {
                     try {
                         LessonSection section = lessonSectionMapper.toEntity(req);
@@ -109,86 +105,76 @@ public class LessonSectionServiceImpl implements LessonSectionService {
                         lesson.getSections().add(section);
 
                         if (req.getFile() != null && !req.getFile().isEmpty()) {
-                            String dataPath = mediaService.uploadImage(
+                            String path = mediaService.uploadImage(
                                     req.getFile(),
                                     req.getDataType(),
                                     false
                             );
-                            section.setDataPath(dataPath);
+                            section.setDataPath(path);
                         }
 
                         return section;
 
                     } catch (IOException e) {
-                        throw new RuntimeException(
-                                "Failed to upload file for lessonSection: " + req.getTitle(),
-                                e
-                        );
+                        throw new RuntimeException("Failed to upload file", e);
                     }
                 })
                 .toList();
 
-        List<LessonSection> savedSections = lessonSectionRepository.saveAll(sections);
+        List<LessonSection> saved = lessonSectionRepository.saveAll(sections);
+        lessonRepository.saveAll(lessonMap.values());
 
-        lessonRepository.saveAll(lessons);
-
-        return savedSections.stream()
-                .map(LessonSectionResponse::toResponse)
+        return saved.stream()
+                .map(lessonSectionMapper::toResponse)
                 .toList();
     }
 
     @Override
     @Cacheable(
             value = "lesson-section-list",
-            key = "T(java.util.Objects).hash(#lessonSectionFilter)"
+            key = "'{lesson-section-data}:list:' + #filter.toString()",
+            unless = "#result == null"
     )
-    public ApiResponse<LessonSectionResponse> getAll(LessonSectionFilter lessonSectionFilter) {
-        Pageable pageable = PageableUtil.createPageable(lessonSectionFilter);
+    public ApiResponse<LessonSectionResponse> getAll(LessonSectionFilter filter) {
+        Pageable pageable = PageableUtil.createPageable(filter);
 
-        Page<LessonSection> lessonSections =
-                lessonSectionRepository.findAll(
-                        LessonSectionSpecification.filter(lessonSectionFilter),
-                        pageable
-                );
+        Page<LessonSection> page = lessonSectionRepository.findAll(
+                LessonSectionSpecification.filter(filter),
+                pageable
+        );
 
-        Page<LessonSectionResponse> results =
-                lessonSections.map(LessonSectionResponse::toResponse);
-
-        return ApiResponse.fromPage(results);
+        return ApiResponse.fromPage(page.map(lessonSectionMapper::toResponse));
     }
 
     @Override
-    @Cacheable(value = "lesson-section", key = "#id")
+    @Cacheable(
+            value = "lesson-section",
+            key = "'{lesson-section-data}:id:' + #id"
+    )
     public LessonSectionResponse getById(Long id) {
         return lessonSectionMapper.toResponse(findById(id));
     }
 
     @Override
     @Transactional
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "lesson-section", key = "#id"),
-                    @CacheEvict(value = "lesson-section-list", allEntries = true)
-            }
-    )
-    public LessonSectionResponse update(Long id, LessonSectionRequest lessonSectionRequest) {
-        LessonSection lessonSection = findById(id);
-        lessonSectionMapper.updateEntityFromRequest(lessonSectionRequest, lessonSection);
-        LessonSection saved = lessonSectionRepository.save(lessonSection);
-        return lessonSectionMapper.toResponse(saved);
+    @Caching(evict = {
+            @CacheEvict(value = "lesson-section", key = "'{lesson-section-data}:id:' + #id"),
+            @CacheEvict(value = "lesson-section-list", allEntries = true)
+    })
+    public LessonSectionResponse update(Long id, LessonSectionRequest request) {
+        LessonSection section = findById(id);
+        lessonSectionMapper.updateEntityFromRequest(request, section);
+        return lessonSectionMapper.toResponse(lessonSectionRepository.save(section));
     }
 
     @Override
     @Transactional
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "lesson-section", key = "#id"),
-                    @CacheEvict(value = "lesson-section-list", allEntries = true)
-            }
-    )
+    @Caching(evict = {
+            @CacheEvict(value = "lesson-section", key = "'{lesson-section-data}:id:' + #id"),
+            @CacheEvict(value = "lesson-section-list", allEntries = true)
+    })
     public void delete(Long id) {
-        LessonSection lessonSection = findById(id);
-        lessonSectionRepository.delete(lessonSection);
+        lessonSectionRepository.delete(findById(id));
     }
 
     private LessonSection findById(Long id) {

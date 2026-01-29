@@ -37,12 +37,12 @@ public class LessonServiceImpl implements LessonService {
     @Override
     @Transactional
     @CacheEvict(value = "lesson-list", allEntries = true)
-    public LessonResponse create(LessonRequest lessonRequest) {
-        Lesson lesson = lessonMapper.toEntity(lessonRequest);
+    public LessonResponse create(LessonRequest request) {
+        Lesson lesson = lessonMapper.toEntity(request);
 
-        Chapter chapter = chapterRepository.findById(lessonRequest.getChapterId())
+        Chapter chapter = chapterRepository.findById(request.getChapterId())
                 .orElseThrow(() ->
-                        new NotFoundException("Chapter not found with id " + lessonRequest.getChapterId())
+                        new NotFoundException("Chapter not found with id " + request.getChapterId())
                 );
 
         lesson.setChapter(chapter);
@@ -57,29 +57,28 @@ public class LessonServiceImpl implements LessonService {
     @Override
     @Transactional
     @CacheEvict(value = "lesson-list", allEntries = true)
-    public List<LessonResponse> addAll(List<LessonRequest> lessonRequests) {
-        if (lessonRequests == null || lessonRequests.isEmpty()) {
+    public List<LessonResponse> addAll(List<LessonRequest> requests) {
+        if (requests == null || requests.isEmpty()) {
             return List.of();
         }
 
-        Set<Long> chapterIds = lessonRequests.stream()
+        Set<Long> chapterIds = requests.stream()
                 .map(LessonRequest::getChapterId)
                 .collect(Collectors.toSet());
 
-        List<Chapter> chapters = chapterRepository.findAllById(chapterIds);
-
-        Map<Long, Chapter> chapterMap = chapters.stream()
+        Map<Long, Chapter> chapterMap = chapterRepository.findAllById(chapterIds)
+                .stream()
                 .collect(Collectors.toMap(Chapter::getId, Function.identity()));
 
-        List<Long> missingChapters = chapterIds.stream()
+        List<Long> missing = chapterIds.stream()
                 .filter(id -> !chapterMap.containsKey(id))
                 .toList();
 
-        if (!missingChapters.isEmpty()) {
-            throw new NotFoundException("Chapters not found with ids: " + missingChapters);
+        if (!missing.isEmpty()) {
+            throw new NotFoundException("Chapters not found with ids: " + missing);
         }
 
-        List<Lesson> lessons = lessonRequests.stream()
+        List<Lesson> lessons = requests.stream()
                 .map(req -> {
                     Lesson lesson = lessonMapper.toEntity(req);
                     Chapter chapter = chapterMap.get(req.getChapterId());
@@ -89,11 +88,10 @@ public class LessonServiceImpl implements LessonService {
                 })
                 .toList();
 
-        List<Lesson> savedLessons = lessonRepository.saveAll(lessons);
+        List<Lesson> saved = lessonRepository.saveAll(lessons);
+        chapterRepository.saveAll(chapterMap.values());
 
-        chapterRepository.saveAll(chapters);
-
-        return savedLessons.stream()
+        return saved.stream()
                 .map(LessonResponse::toResponse)
                 .toList();
     }
@@ -101,50 +99,52 @@ public class LessonServiceImpl implements LessonService {
     @Override
     @Cacheable(
             value = "lesson-list",
-            key = "T(java.util.Objects).hash(#lessonFilter)"
+            key = "'{lesson-data}:list:' + #filter.toString()",
+            unless = "#result == null"
     )
-    public ApiResponse<LessonResponse> getAll(LessonFilter lessonFilter) {
-        Pageable pageable = PageableUtil.createPageable(lessonFilter);
-        Page<Lesson> lessons = lessonRepository.findAll(LessonSpecification.filter(lessonFilter), pageable);
-        Page<LessonResponse> result = lessons.map(LessonResponse::toResponse);
-        return ApiResponse.fromPage(result);
+    public ApiResponse<LessonResponse> getAll(LessonFilter filter) {
+        Pageable pageable = PageableUtil.createPageable(filter);
+
+        Page<Lesson> page = lessonRepository.findAll(
+                LessonSpecification.filter(filter),
+                pageable
+        );
+
+        return ApiResponse.fromPage(page.map(LessonResponse::toResponse));
     }
 
     @Override
-    @Cacheable(value = "lesson", key = "#id")
+    @Cacheable(
+            value = "lesson",
+            key = "'{lesson-data}:id:' + #id"
+    )
     public LessonResponse getById(Long id) {
         return LessonResponse.toResponse(findById(id));
     }
 
     @Override
     @Transactional
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "lesson", key = "#id"),
-                    @CacheEvict(value = "lesson-list", allEntries = true)
-            }
-    )
-    public LessonResponse update(Long id, LessonRequest lessonRequest) {
+    @Caching(evict = {
+            @CacheEvict(value = "lesson", key = "'{lesson-data}:id:' + #id"),
+            @CacheEvict(value = "lesson-list", allEntries = true)
+    })
+    public LessonResponse update(Long id, LessonRequest request) {
         Lesson lesson = findById(id);
-        lessonMapper.updateEntityFromRequest(lessonRequest, lesson);
-        Lesson saved = lessonRepository.save(lesson);
-        return LessonResponse.toResponse(saved);
+        lessonMapper.updateEntityFromRequest(request, lesson);
+        return LessonResponse.toResponse(lessonRepository.save(lesson));
     }
 
     @Override
     @Transactional
-    @Caching(
-            evict = {
-                    @CacheEvict(value = "lesson", key = "#id"),
-                    @CacheEvict(value = "lesson-list", allEntries = true)
-            }
-    )
+    @Caching(evict = {
+            @CacheEvict(value = "lesson", key = "'{lesson-data}:id:' + #id"),
+            @CacheEvict(value = "lesson-list", allEntries = true)
+    })
     public void delete(Long id) {
-        Lesson lesson = findById(id);
-        lessonRepository.delete(lesson);
+        lessonRepository.delete(findById(id));
     }
 
-    public Lesson findById(Long id) {
+    private Lesson findById(Long id) {
         return lessonRepository.findById(id)
                 .orElseThrow(() ->
                         new NotFoundException("Lesson not found with id: " + id)

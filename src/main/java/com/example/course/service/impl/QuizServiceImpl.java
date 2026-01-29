@@ -78,7 +78,8 @@ public class QuizServiceImpl implements QuizService {
     @Override
     @Cacheable(
             value = "quiz-list",
-            key = "T(java.util.Objects).hash(#quizFilter)"
+            key = "'{quiz-data}:list:' + #quizFilter.toString()",
+            unless = "#result == null"
     )
     public ApiResponse<QuizResponse> getAll(QuizFilter quizFilter) {
         Pageable pageable = PageableUtil.createPageable(quizFilter);
@@ -90,7 +91,8 @@ public class QuizServiceImpl implements QuizService {
     @Override
     @Cacheable(
             value = "quiz-list",
-            key = "'review-'.concat(T(java.util.Objects).hash(#quizFilter).toString())"
+            key = "'{quiz-data}:review-list:' + #quizFilter.toString()",
+            unless = "#result == null"
     )
     public ApiResponse<QuizReviewResponse> getReview(QuizFilter quizFilter) {
         Pageable pageable = PageableUtil.createPageable(quizFilter);
@@ -100,7 +102,10 @@ public class QuizServiceImpl implements QuizService {
     }
 
     @Override
-    @Cacheable(value = "quiz", key = "#id")
+    @Cacheable(
+            value = "quiz",
+            key = "'{quiz-data}:id:' + #id"
+    )
     public QuizResponse getById(Long id) {
         return quizMapper.toResponse(findById(id));
     }
@@ -109,7 +114,7 @@ public class QuizServiceImpl implements QuizService {
     @Transactional
     @Caching(
             evict = {
-                    @CacheEvict(value = "quiz", key = "#id"),
+                    @CacheEvict(value = "quiz", key = "'{quiz-data}:id:' + #id"),
                     @CacheEvict(value = "quiz-list", allEntries = true)
             }
     )
@@ -124,7 +129,7 @@ public class QuizServiceImpl implements QuizService {
     @Transactional
     @Caching(
             evict = {
-                    @CacheEvict(value = "quiz", key = "#id"),
+                    @CacheEvict(value = "quiz", key = "'{quiz-data}:id:' + #id"),
                     @CacheEvict(value = "quiz-list", allEntries = true)
             }
     )

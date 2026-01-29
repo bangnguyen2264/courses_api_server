@@ -5,7 +5,7 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 import org.springframework.data.domain.Sort;
 @Data
-public class BaseFilter {
+public class BaseFilter  {
     @Min(value = 0, message = "Page index must be greater than or equal to 0")
     @Schema(defaultValue = "0")
     private int page = 0;

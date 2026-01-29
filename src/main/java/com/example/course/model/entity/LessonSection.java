@@ -13,7 +13,7 @@
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    public class LessonSection extends BaseEntity implements Serializable {
+    public class LessonSection extends BaseEntity{
 
         @Id
         @GeneratedValue(strategy = GenerationType.IDENTITY)

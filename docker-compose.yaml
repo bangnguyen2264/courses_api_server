@@ -1,57 +1,55 @@
-version: "3.9"
+version: "5.0"
 
 services:
-  db:
-    image: postgres:13-alpine
-    container_name: Postgres_DB
-    restart: always
-    env_file:
-      - .env
+
+  # =========================
+  # POSTGRES
+  # =========================
+  postgres:
+    image: postgres:16-alpine
+    container_name: course-postgres
+    restart: unless-stopped
+
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: course_db
+      POSTGRES_USER: course
+      POSTGRES_PASSWORD: course
+
     ports:
       - "5432:5432"
+
     volumes:
-      - db_data:/var/lib/postgresql/data
-    networks:
-      - course-network-local
+      - postgres_data:/var/lib/postgresql/data
 
-  backend:
-    build: .
-    container_name: course_server
-    restart: always
-    env_file:
-      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U course"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+
+  # =========================
+  # REDIS
+  # =========================
+  redis:
+    image: redis:7-alpine
+    container_name: course-redis
+    restart: unless-stopped
+
+    command: >
+      redis-server
+      --requirepass course_redis_pass
+
     ports:
-      - "8081:8081"
-    environment:
-      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
-      BACKEND_PORT: ${BACKEND_PORT}
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      - "6379:6379"
 
-      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES}
-      JWT_REFRESH_EXPIRES: ${JWT_REFRESH_EXPIRES}
+    volumes:
+      - redis_data:/data
 
-      API_BASE_URL: ${API_BASE_URL}
-      API_TITLE: ${API_TITLE}
-      API_VERSION: ${API_VERSION}
-      API_CONTACT_EMAIL: ${API_CONTACT_EMAIL}
-      SWAGGER_ENABLE: ${SWAGGER_ENABLE}
 
-    depends_on:
-      - db
-    networks:
-      - course-network-local
-
+# =========================
+# VOLUMES
+# =========================
 volumes:
-  db_data:
-
-networks:
-  course-network-local:
-    driver: bridge
+  postgres_data:
+  redis_data:

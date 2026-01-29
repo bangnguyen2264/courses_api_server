@@ -22,19 +22,20 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class SubjectServiceImpl implements SubjectService {
+
     private final SubjectRepository subjectRepository;
     private final SubjectMapper subjectMapper;
 
     @Override
     @Cacheable(
             value = "subject-list",
-            key = "T(java.util.Objects).hash(#filter)"
+            key = "'{subject-data}:list:' + #filter.toString()",
+            unless = "#result == null"
     )
     public ApiResponse<SubjectResponse> getAll(SubjectFilter filter) {
         Pageable pageable = PageableUtil.createPageable(filter);
@@ -48,97 +49,72 @@ public class SubjectServiceImpl implements SubjectService {
     }
 
     @Override
-    @Cacheable(value = "subject", key = "#id")
+    @Cacheable(
+            value = "subject",
+            key = "'{subject-data}:id:' + #id"
+    )
     public SubjectDetailResponse getById(Long id) {
         Subject subject = findById(id);
         return SubjectDetailResponse.toResponse(subject);
     }
 
     @Override
-    @CacheEvict(value = {"subject-list"}, allEntries = true)
     @Transactional
+    @CacheEvict(value = "subject-list", allEntries = true)
     public SubjectResponse create(SubjectRequest subjectRequest) {
-
-        // 1. Check trùng tên
         if (subjectRepository.existsByName(subjectRequest.getName())) {
             throw new BadRequestException("Subject name already exists");
         }
-        // 2. Taọ mới
         Subject subject = subjectMapper.toEntity(subjectRequest);
-
-        // 3. Save
         Subject saved = subjectRepository.save(subject);
-
-        // 4. Map entity → response
         return subjectMapper.toResponse(saved);
     }
 
     @Override
     @Transactional
-    @CacheEvict(value="subject-list", allEntries=true)
+    @CacheEvict(value = "subject-list", allEntries = true)
     public List<SubjectResponse> addAll(List<SubjectRequest> subjectRequests) {
         if (subjectRequests == null || subjectRequests.isEmpty()) {
             return List.of();
         }
 
-        // 1. Lấy danh sách tên gửi lên
-        List<String> names = subjectRequests.stream()
-                .map(SubjectRequest::getName)
-                .toList();
-
-        // 2. Kiểm tra trùng với DB
+        List<String> names = subjectRequests.stream().map(SubjectRequest::getName).toList();
         List<String> existingNames = subjectRepository.findByNameIn(names)
-                .stream()
-                .map(Subject::getName)
-                .toList();
+                .stream().map(Subject::getName).toList();
 
         if (!existingNames.isEmpty()) {
             throw new BadRequestException("These subject names already exist: " + existingNames);
         }
 
-        // 3. Map request → entity
-        List<Subject> subjects = subjectRequests.stream()
-                .map(subjectMapper::toEntity)
-                .toList();
-
-        // 4. Save all
+        List<Subject> subjects = subjectRequests.stream().map(subjectMapper::toEntity).toList();
         List<Subject> savedSubjects = subjectRepository.saveAll(subjects);
 
-        // 5. Map entity → response
-        return savedSubjects.stream()
-                .map(subjectMapper::toResponse)
-                .toList();
+        return savedSubjects.stream().map(subjectMapper::toResponse).toList();
     }
-
-
 
     @Override
     @Caching(
             evict = {
-                    @CacheEvict(value = "subject", key = "#id"),      // Chỉ xóa item đang sửa
-                    @CacheEvict(value = "subject-list", allEntries = true) // Xóa list vì tên có thể đổi làm thay đổi thứ tự/kết quả tìm kiếm
+                    @CacheEvict(value = "subject", key = "'{subject-data}:id:' + #id"),
+                    @CacheEvict(value = "subject-list", allEntries = true)
             }
-    )    public SubjectResponse update(Long id, SubjectRequest request) {
-
+    )
+    public SubjectResponse update(Long id, SubjectRequest request) {
         Subject subject = findById(id);
-
         subjectMapper.updateEntityFromRequest(request, subject);
-
         Subject saved = subjectRepository.save(subject);
-
         return subjectMapper.toResponse(saved);
     }
 
-
     @Override
     @Caching(
             evict = {
-                    @CacheEvict(value = "subject", key = "#id"),       // Chỉ xóa đúng thằng bị delete
-                    @CacheEvict(value = "subject-list", allEntries = true) // Xóa list thì phải xóa hết
+                    @CacheEvict(value = "subject", key = "'{subject-data}:id:' + #id"),
+                    @CacheEvict(value = "subject-list", allEntries = true)
             }
-    )    public void delete(Long id) {
+    )
+    public void delete(Long id) {
         Subject subject = findById(id);
-
         subjectRepository.delete(subject);
     }
 
