@@ -11,7 +11,7 @@ import lombok.ToString;
 import java.time.LocalDate;
 
 @Data
-@ToString
+@ToString(callSuper=true)
 @EqualsAndHashCode(callSuper = true)
 public class UserFilter extends BaseFilter {
 

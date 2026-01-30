@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 @Data
-@ToString
+@ToString(callSuper=true)
 @EqualsAndHashCode(callSuper=true)
 public class LessonSectionFilter extends  BaseFilter{
 

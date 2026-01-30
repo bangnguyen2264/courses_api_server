@@ -7,7 +7,7 @@ import lombok.ToString;
 import java.time.LocalDateTime;
 
 @Data
-@ToString
+@ToString(callSuper=true)
 @EqualsAndHashCode(callSuper = true)
 public class ExamResultFilter extends BaseFilter {
 
