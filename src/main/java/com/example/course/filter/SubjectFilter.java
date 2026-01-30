@@ -7,7 +7,7 @@ import lombok.ToString;
 import org.springdoc.core.annotations.ParameterObject;
 
 @Data
-@ToString
+@ToString(callSuper=true)
 @Schema(allOf = {BaseFilter.class})
 @ParameterObject
 @EqualsAndHashCode(callSuper = true)

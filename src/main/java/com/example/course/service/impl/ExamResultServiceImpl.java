@@ -85,7 +85,7 @@ public class ExamResultServiceImpl implements ExamResultService {
     }
 
     @Override
-    @Cacheable(key = "'{exam-result-data}:list:' + T(java.util.Objects).hash(#filter)")
+    @Cacheable(key = "'{exam-result-data}:list:' + #filter.toString()")
     public ApiResponse<ExamResultResponse> getAll(ExamResultFilter filter) {
         Pageable pageable = PageableUtil.createPageable(filter);
 

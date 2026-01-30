@@ -8,6 +8,7 @@ import lombok.ToString;
 import org.springdoc.core.annotations.ParameterObject;
 
 @Data
+@ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class ChapterFilter extends BaseFilter {
     @Schema(description = "Search by title or description")
